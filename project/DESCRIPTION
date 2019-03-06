@@ -1,0 +1,11 @@
+Package: RDataWrangler
+Title: R Data Wrangler
+Date: 03-03-2019
+Version: 0.1
+Authors@R: person("MARY", "Mélissa", email = "melissa.cha.mary@gmail.com", role = c("aut", "cre"))
+Description: Package intend to facilitate data frame transformation according external parameters in specific format.
+Depends: R (>= 3.3.1), data.table, lubridate, openxlsx, readxl, stringr
+License: MIT-license
+Encoding: UTF-8
+RoxygenNote: 6.1.1
+LazyData: true
