@@ -1,0 +1,4 @@
+"ID","FROM","TO","DATE","DURATION"
+"A","Paris", "Berlin","2019-01-30","3"
+"B","Paris", "Lyon","2019-03-20","2"
+"C","Berlin", "Paris","2019-01-15","4"
