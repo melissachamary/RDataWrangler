@@ -1,4 +1,4 @@
-#' wrangle.Files
+#' wrangle.TablesList
 #' Import data table list into R (according source_file description) and wrangle into new data table list following wrangle_parameter_file description.
 #'
 #'@param wrangle_parameter file of parameter data frame (see format)
@@ -13,8 +13,12 @@
 #' @export
 #' 
 #' 
-wrangle.Files<-function(wrangler_parameter , sources_file){
-  raw<-importTableFromSource(sources_file)
+wrangle.TablesList<-function(wrangler_parameter , table_list, call_customFunction){
+  if(is.list(table_list)){
+    raw<-table_list
+  }else{
+    stop("[wrangle.TablesList] table_list argument isn't type of list")
+  }
   
   wrangler<-importWranglerParameter(wrangler_parameter)
   
@@ -34,8 +38,8 @@ wrangle.Files<-function(wrangler_parameter , sources_file){
         wrangler$source_field[which(wrangler$source_table == source)],pattern='[|]')))
       if(length(which(!attWParamSource%in%attSource))>0){
         stop(paste("[wrangle.Files] table source",paste(source,
-              sep = " doesn't contains some column used in wrangler parameter ", 
-              attWParamSource[which(!attWParamSource%in%attSource)])))
+                                                        sep = " doesn't contains some column used in wrangler parameter ", 
+                                                        attWParamSource[which(!attWParamSource%in%attSource)])))
       }
       
     }
@@ -45,14 +49,30 @@ wrangle.Files<-function(wrangler_parameter , sources_file){
   necessaryFunction<-unlist(unique(c(wrangler[,c("mapper","check_fail","ref_fail")])))
   necessaryCheck<-unlist(lapply(necessaryFunction, FUN = function(x){
     if(is.na(x)){ return(TRUE)}else{
-    return(exists(x,mode='function'))}
+      return(exists(x,mode='function'))}
   }))
   if(length(which(!necessaryCheck))>0){
     stop(paste("[wrangle.Files] some check functions on data are not found",sep=" : ", necessaryFunction[!necessaryCheck]))
   }
-
-#--- wrangle
+  
+  #--- wrangle
   tables<-list()
+  
+  ##--- call universally function
+  if(!is.null(call_customFunction)&& is.data.frame(call_customFunction)&& length(
+    which(c("table_name","function_name")%in%colnames(call_customFunction)))==2){
+    for(i in nrow(call_customFunction)){
+      f_name<-call_customFunction$function_name[i]
+      if(exists(x=f_name,mode='function')&& !is.na(call_customFunction$table_name[i])){
+        raw[[call_customFunction$table_name[i]]]<-get(call_customFunction$function_name[i])(raw)
+        tables[[call_customFunction$table_name[i]]]<-get(call_customFunction$function_name[i])(raw)
+        
+      }else{
+        print(paste("[Wrangle Pre-process] error in custom_call_data at line",i))
+      }
+  }
+  
+  }
   for(t in target_table_name){
     i<-which(wrangler$target_table == t)
     map <- wrangler[i,]
@@ -61,7 +81,10 @@ wrangle.Files<-function(wrangler_parameter , sources_file){
       id_map<-map[which(map$check=="as.ID"),]
     } 
     else{
-      stop(paste("[wrangle.Files] multiple id specified for same source table (as.ID in check field)", t))
+      #### split error
+      if(length(id_field)==0){error_check<-"no"}else{error_check<-"multiple"}
+      stop(paste("[wrangle.Files]",paste(error_check,
+                                         sep=" id specified for same source table (as.ID in check field)", t)))
     }
     
     #--- gère des mapper TODO ----
@@ -77,24 +100,24 @@ wrangle.Files<-function(wrangler_parameter , sources_file){
         x   <- get(id_map$mapper)(subset(raw[[id_map$source_table]],,fieldSel))
         
       }else{
-         x   <- get(id_map$mapper)(raw[[id_map$source_table]][[id_map$source_field]])
+        x   <- get(id_map$mapper)(raw[[id_map$source_table]][[id_map$source_field]])
         
       }
     }
     # Create target table with ID ==> of indices iff label
     ft  <- !duplicated(x)
-  #  if(id_map$target_field == "label"){
-   #   x<-1:length(unique(x))
-  #    ft<-rep(TRUE, times=length(unique(x)))
-  #  }
-  tables[[id_map$target_table]] <- data.table(id = x[ft]) #modify to point on 
-  setnames(tables[[id_map$target_table]],c(id_field)) 
-  #  if(!is.na(id_map$check)){
-     # x   <- get(id_map$check)(raw[[id_map$source_table]][[id_map$source_field]])
+    #  if(id_map$target_field == "label"){
+    #   x<-1:length(unique(x))
+    #    ft<-rep(TRUE, times=length(unique(x)))
+    #  }
+    tables[[id_map$target_table]] <- data.table(id = x[ft]) #modify to point on 
+    setnames(tables[[id_map$target_table]],c(id_field)) 
+    #  if(!is.na(id_map$check)){
+    # x   <- get(id_map$check)(raw[[id_map$source_table]][[id_map$source_field]])
     #  print(paste("[Constraint ckeck] On", sep=" ",
-     #             paste(
-      #              paste(id_map$target_table,sep="$",id_map$target_field),
-       #             sep=" result ", x)))
+    #             paste(
+    #              paste(id_map$target_table,sep="$",id_map$target_field),
+    #             sep=" result ", x)))
     #}
     
     
@@ -106,22 +129,24 @@ wrangle.Files<-function(wrangler_parameter , sources_file){
       att_map<-map[att,]
       # Retrieve duplicate filter
       ft <- attr(raw[[att_map$source_table]], att_map$target_table)
-     
+      
       ###### mapp on other than as.ID TODO
       # att_map$source_field !%in% raw[att_map$source_table] => split (check fait au préalable) => envoi le tableau au mapper
       # att$source_field == na => envoi tous le tableau au mapper
       #/!\ nécessite de checker un peu plus dans les mapper
-       # Convert
+      # Convert
       if(is.na(att_map$source_field)) {
         # Multi-column mapper
         x   <- get(att_map$mapper)(raw[[att_map$source_table]][ft])
       } else if(!att_map$source_field%in% colnames(raw[[att_map$source_table]])){
         atts<-unlist(str_split(att_map$source_field,pattern="|"))
         x   <- get(att_map$mapper)(raw[[att_map$source_table]][[atts]][ft])
-      }else{# Direct mapper #
+      }else if(!is.na(att_map$ref_table)){# Direct mapper #
+        x   <- get(att_map$mapper)(x=raw[[att_map$source_table]][[att_map$source_field]][ft],table = tables[[att_map$ref_table]])
+      }else{#### gestion table nomenclature
         x   <- get(att_map$mapper)(raw[[att_map$source_table]][[att_map$source_field]][ft])
       }
-
+      
       # Append to table
       if(length(x)>dim(tables[[att_map$target_table]])[1]){
         tables[[att_map$target_table]][, c(att_map$target_field) := unique(x)]
@@ -142,6 +167,31 @@ wrangle.Files<-function(wrangler_parameter , sources_file){
     
     
   }
+  print("##### End #####")
+  print(names(raw))
+  
+  return(tables)
+}
+
+
+#' wrangle.Files
+#' Import data table list into R (according source_file description) and wrangle into new data table list following wrangle_parameter_file description.
+#'
+#'@param wrangle_parameter file of parameter data frame (see format)
+#'@param sources_file name of data frame on which foreign key constraint is checked
+#'@return list of data table
+#'
+#'@import data.table
+#'@import lubridate
+#'@import stringr
+#'@import readxl 
+#' 
+#' @export
+#' 
+#' 
+wrangle.Files<-function(wrangler_parameter , sources_file, call_customFunction){
+  raw<-importTableFromSource(sources_file)
+  tables<- wrangle.TablesList(wrangler_parameter , table_list=raw, call_customFunction)
   return(tables)
 }
 
