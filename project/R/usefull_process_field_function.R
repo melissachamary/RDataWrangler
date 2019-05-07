@@ -53,14 +53,36 @@ positive<-function(dataVector){
 #'
 #'
 generatedKey<-function(dataFrame){
-  print(is.data.frame(dataFrame))
-  print(typeof(dataFrame))
-  if(is.data.frame(dataFrame)){
-    
+    if(is.data.frame(dataFrame)){
+    print("in if")
     lengthGeneration<-nrow(unique(dataFrame))
+    key<-as.character(c(1:lengthGeneration))
+    
   }else{
-    print(dataFrame)
     lengthGeneration<-length(unique(dataFrame))
+    key<-as.character(c(1:lengthGeneration))
+    names(key)<-unique(dataFrame)
   }
-  return(as.character(c(1:lengthGeneration)))
+  return(key)
+}
+
+#' generateWirdNomenclatureTable
+#' generate table nomenclature from extended table when length(unique(id) != length(unique(label))
+#' 
+#'@param dataFrame column subset data frame on which identifiers should be generated
+#'@return vector
+#' @export
+#'
+#'
+generateWirdNomenclatureTable<-function(dataFrame){
+  if(is.data.frame(dataFrame)){
+    print("in if")
+    nomTable<-unique(dataFrame)
+    names(nomTable)<-c("id","label")
+    
+  }else{
+    lengthGeneration<-length(unique(dataFrame))
+    nomTable<-data.table(id=as.character(c(1:lengthGeneration)),label=unique(dataFrame))
+  }
+  return(nomTable)
 }

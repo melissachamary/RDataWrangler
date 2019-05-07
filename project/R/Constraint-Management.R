@@ -21,12 +21,12 @@ foreignKeyConstraint<-function(tables, fk_field, fk_table, pk_field, pk_table, a
   }
   dataFK<-tables[[fk_table]][[fk_field]]
   dataPK<-c(unique(tables[[pk_table]][[pk_field]]),NA)
-  print(head(dataFK))
-  print(head(dataPK))
+  
+  ## ADDITION
   fkFail<-dataFK[which(!dataFK %in% dataPK)]
   if(length(fkFail)>0 && !is.na(action)){
     print(paste("[Foreign key check] KO",sep=" ", paste(fk_table,sep="$",fk_field)))
-    setkeyv(tables[[fk_table]], c(fk_field))
+    #setkeyv(tables[[fk_table]], c(fk_field))
     get(action)(tables, fkFail, fk_field, fk_table, pk_table,"UNSOLVED_FK")
   }else{
     print(paste("[Foreign key check] OK",sep=" ", paste(fk_table,sep="$",fk_field)))
